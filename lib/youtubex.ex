@@ -1,18 +1,11 @@
 defmodule Youtubex do
+  @initial_state = %{}
   @moduledoc """
   Documentation for Youtubex.
   """
-
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> Youtubex.hello
-      :world
-
-  """
-  def hello do
-    :world
+  use GenServer
+  
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 end
