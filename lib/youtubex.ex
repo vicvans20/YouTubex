@@ -19,6 +19,10 @@ defmodule Youtubex do
     GenServer.call(__MODULE__, {:search, term})
   end
 
+  def my_videos() do
+    GenServer.call(__MODULE__, :my_videos)
+  end
+
   def get_state() do
     GenServer.call(__MODULE__, :get_state)
   end
@@ -33,7 +37,15 @@ defmodule Youtubex do
 
   def handle_call({:search, term}, _from, state) do
     api_key = state[:api_key]
-    url = gen_base_url(api_key) <> "&part=snippet&maxResults=10&query=#{term}"
+    url = gen_request_url(api_key, :search, %{max_results: 10, query: term})
+    IO.puts "Checking this: \n #{url}"
+    result = HTTPoison.get(url) |> response_parser
+    {:reply, result, state}
+  end
+
+  def handle_call(:my_videos, _from, state) do
+    api_key = state[:api_key]
+    url = gen_request_url(api_key, :channel, %{action: :mine})
     IO.puts "Checking this: \n #{url}"
     result = HTTPoison.get(url) |> response_parser
     {:reply, result, state}
@@ -47,13 +59,47 @@ defmodule Youtubex do
   ############ Helper Functions###############
   ############################################
 
-  defp gen_base_url(:none) do
-   "https://www.googleapis.com/youtube/v3/search?"
+  defp gen_request_url(api_key, resource, params = %{}) do
+    resource_param = parse_resource(resource)
+    api_key_param = parse_api_key(api_key)
+    base_url = "https://www.googleapis.com/youtube/v3/" <> resource_param <> api_key_param
+    complete_request(base_url, resource, params)
   end
 
-  defp gen_base_url(api_key) do
-   "https://www.googleapis.com/youtube/v3/search?key=#{api_key}"
+  defp parse_resource(resource) do
+    case resource do
+      :search -> "search?"
+      :channel -> "channels?"
+    end
   end
+
+  defp parse_api_key(api_key) do
+    case api_key do
+      :none -> ""
+      key -> "key=#{key}"
+    end
+  end
+
+  defp complete_request(base_url, :search, %{max_results: max_results, query: term}) do
+    request_url = base_url
+    <> "&part=snippet"
+    <> "&maxResults=#{max_results}"
+    <> "&query=#{term}"
+    request_url
+  end
+
+  defp complete_request(base_url, :channel, %{action: :mine}) do
+    request_url = base_url
+    <> "&part=contentDetails"
+    <> "&mine=true"
+    request_url
+  end
+
+  defp complete_request(base_url, :channel, %{action: _action}) do
+    request_url = base_url
+    request_url
+  end
+
 
   defp response_parser({:ok, %HTTPoison.Response{status_code: 200, body: body} }) do
     {:ok, Poison.Parser.parse!(body)}
