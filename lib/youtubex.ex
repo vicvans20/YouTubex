@@ -100,6 +100,12 @@ defmodule Youtubex do
   end
 
   # With api key
+  defp gen_request_url(:none, resource, params = %{}) do
+    request_params = parse_params(params)
+    build_resource_request(resource, request_params)
+  end
+
+  # Without api key
   defp gen_request_url(api_key, resource, params = %{}) do
     request_params = parse_params(params)
     request_url = build_resource_request(resource, request_params)
@@ -107,12 +113,6 @@ defmodule Youtubex do
     request_url
   end
   
-  # Without api key
-  defp gen_request_url(:none, resource, params = %{}) do
-    request_params = parse_params(params)
-    build_resource_request(resource, request_params)
-  end
-
 
   # Build base resource url request according to the endpoint
   defp build_resource_request(:search, %{max_results: max_results, part: part ,query: term}) do
