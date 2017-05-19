@@ -15,12 +15,20 @@ defmodule Youtubex do
     GenServer.start_link(__MODULE__, {api_key, opts}, name: __MODULE__)
   end
 
-  def search(term) do
-    GenServer.call(__MODULE__, {:search, term})
+  def search(term, max_results \\ 10) do
+    GenServer.call(__MODULE__, {:search, term, max_results})
+  end
+
+  def search_channel(display_name, max_results \\ 10) do
+    GenServer.call(__MODULE__, {:search_channel, display_name, max_results})
   end
 
   def my_videos() do
     GenServer.call(__MODULE__, :my_videos)
+  end
+
+  def test() do
+    GenServer.call(__MODULE__, :test)
   end
 
   def get_state() do
@@ -35,9 +43,18 @@ defmodule Youtubex do
     {:ok, state}
   end
 
-  def handle_call({:search, term}, _from, state) do
+  def handle_call({:search, term, max_results}, _from, state) do
     api_key = state[:api_key]
-    url = gen_request_url(api_key, :search, %{max_results: 10, query: term})
+    url = gen_request_url(api_key, :search, %{max_results: max_results , query: term})
+    IO.puts "Checking this: \n #{url}"
+    result = HTTPoison.get(url) |> response_parser
+    {:reply, result, state}
+  end
+
+  def handle_call({:search_channel, term, max_results}, _from, state) do
+    api_key = state[:api_key]
+    url = gen_request_url(api_key, :search, %{max_results: max_results , type: :channel, query: term})
+
     IO.puts "Checking this: \n #{url}"
     result = HTTPoison.get(url) |> response_parser
     {:reply, result, state}
@@ -47,6 +64,13 @@ defmodule Youtubex do
     api_key = state[:api_key]
     url = gen_request_url(api_key, :channel, %{action: :mine})
     IO.puts "Checking this: \n #{url}"
+    result = HTTPoison.get(url) |> response_parser
+    {:reply, result, state}
+  end
+
+  def handle_call(:test, _from, state) do
+    api_key = state[:api_key]
+    url = "https://www.googleapis.com/youtube/v3/channels?key=#{api_key}&part=id&forUsername=eveevans"
     result = HTTPoison.get(url) |> response_parser
     {:reply, result, state}
   end
@@ -84,6 +108,15 @@ defmodule Youtubex do
     request_url = base_url
     <> "&part=snippet"
     <> "&maxResults=#{max_results}"
+    <> "&query=#{term}"
+    request_url
+  end
+
+  defp complete_request(base_url, :search, %{max_results: max_results, type: :channel ,query: term}) do
+    request_url = base_url
+    <> "&part=snippet"
+    <> "&maxResults=#{max_results}"
+    <> "&type=channel"
     <> "&query=#{term}"
     request_url
   end
